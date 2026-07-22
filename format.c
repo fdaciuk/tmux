@@ -418,8 +418,8 @@ format_job_get(struct format_expand_state *es, const char *cmd)
 		RB_INSERT(format_job_tree, jobs, fj);
 	}
 
-	format_copy_state(&next, es,
-	    FORMAT_EXPAND_NOJOBS|FORMAT_EXPAND_NOCYCLE);
+	format_copy_state(&next, es, FORMAT_EXPAND_NOJOBS|
+	    FORMAT_EXPAND_NOCYCLE);
 	next.flags &= ~FORMAT_EXPAND_TIME;
 
 	expanded = format_expand1(&next, cmd);
@@ -5820,11 +5820,8 @@ format_cycle_start_timer(struct client *c)
 
 	if (!event_initialized(&c->cycle_timer))
 		evtimer_set(&c->cycle_timer, format_cycle_callback, c);
-	if (!evtimer_pending(&c->cycle_timer, NULL)) {
-		log_debug("client %p, cycle timer %u ms", c,
-		    FORMAT_CYCLE_PERIOD);
+	if (!evtimer_pending(&c->cycle_timer, NULL))
 		evtimer_add(&c->cycle_timer, &tv);
-	}
 }
 
 /* Expand the "A" animation modifier; see the manual for the syntax. */
@@ -5833,7 +5830,7 @@ format_cycle(struct format_expand_state *es, const char *frames, u_int count)
 {
 	struct format_tree	*ft = es->ft;
 	const char		*start, *end, *cp;
-	u_int			 nframes, index, i;
+	u_int			 n, index, i;
 
 	/*
 	 * A cycle is only expanded in a status format, and never in the
@@ -5846,21 +5843,18 @@ format_cycle(struct format_expand_state *es, const char *frames, u_int count)
 		return (xstrdup(""));
 
 	/* Count the comma-separated frames (there is at least one). */
-	nframes = 1;
+	n = 1;
 	for (cp = frames; *cp != '\0'; cp++) {
 		if (*cp == ',')
-			nframes++;
+			n++;
 	}
-
-	/* count >= 1 and the period is fixed, so the divisor is safe. */
-	index = (u_int)((es->start_time /
-	    ((uint64_t)count * FORMAT_CYCLE_PERIOD)) % nframes);
+	index = (es->start_time / (count * FORMAT_CYCLE_PERIOD)) % n;
 
 	/*
 	 * Redraw the status line so the frames advance on their own; a
 	 * single frame never changes so there is nothing to redraw for.
 	 */
-	if (nframes > 1 && ft->client != NULL)
+	if (n > 1 && ft->client != NULL)
 		format_cycle_start_timer(ft->client);
 
 	/* Walk to the chosen frame and return a copy of it. */
@@ -5958,8 +5952,8 @@ format_replace(struct format_expand_state *es, const char *key, size_t keylen,
 				modifiers |= FORMAT_CYCLE;
 				if (fm->argc < 1)
 					break;
-				cycle_count = strtonum(fm->argv[0], 1,
-				    INT_MAX, &errstr);
+				cycle_count = strtonum(fm->argv[0], 1, 100,
+				    &errstr);
 				if (errstr != NULL)
 					cycle_count = 1;
 				break;
